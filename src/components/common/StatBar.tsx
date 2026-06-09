@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 interface StatBarProps {
   current: number;
   max: number;
-  type: 'hp' | 'mp' | 'energy' | 'exp';
+  type: 'hp' | 'mp' | 'energy' | 'exp' | 'shield';
   showLabel?: boolean;
   label?: string;
   height?: 'sm' | 'md' | 'lg';
@@ -39,6 +39,13 @@ const typeConfig = {
     bg: 'bg-cyan-950/50',
     labelText: '经验',
     textColor: 'text-cyan-300',
+  },
+  shield: {
+    gradient: 'from-sky-600 via-sky-400 to-cyan-300',
+    glow: 'shadow-sky-400/50',
+    bg: 'bg-sky-950/50',
+    labelText: '护盾',
+    textColor: 'text-sky-300',
   },
 };
 

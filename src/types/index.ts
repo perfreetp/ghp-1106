@@ -3,6 +3,24 @@
  * 所有联合类型均使用中文，便于业务逻辑理解
  */
 
+// ==================== 全局配置常量 ====================
+
+/** 三星判定：快通关回合数阈值（回合数 ≤ 此值算快速通关） */
+export const STAR_FAST_CLEAR_TURNS = 12;
+
+/** 失败分析：回合过多阈值（超过此值提示回合过多） */
+export const FAIL_TOO_MANY_TURNS = 20;
+
+/** 首通奖励：金币加成倍数 */
+export const REWARD_FIRST_CLEAR_GOLD_MULT = 0.8;
+/** 首通奖励：固定钻石 */
+export const REWARD_FIRST_CLEAR_DIAMOND = 20;
+
+/** 三星奖励：金币加成倍数 */
+export const REWARD_THREE_STAR_GOLD_MULT = 1.2;
+/** 三星奖励：固定钻石 */
+export const REWARD_THREE_STAR_DIAMOND = 50;
+
 // ==================== 属性相关 ====================
 
 /**

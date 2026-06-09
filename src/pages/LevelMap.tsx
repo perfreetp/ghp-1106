@@ -23,6 +23,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { HeroAvatar } from '@/components/common/HeroAvatar';
 import { GameButton } from '@/components/common/GameButton';
 import { Modal } from '@/components/common/Modal';
+import { STAR_FAST_CLEAR_TURNS } from '@/types';
 
 const CHAPTERS = [
   { id: 1, name: '第一章 新手试炼', icon: '🌱' },
@@ -465,7 +466,7 @@ export default function LevelMap() {
               <div className="grid gap-2 sm:grid-cols-3">
                 {[
                   { icon: <ShieldCheck size={14} />, text: '通关关卡' },
-                  { icon: <Zap size={14} />, text: '回合数 < 10' },
+                  { icon: <Zap size={14} />, text: `回合数 ≤ ${STAR_FAST_CLEAR_TURNS}` },
                   { icon: <Heart size={14} />, text: '无英雄阵亡' },
                 ].map((cond, i) => {
                   const stars = store.levelProgress[selectedLevel.id]?.stars || 0;

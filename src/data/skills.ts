@@ -1,4 +1,5 @@
 export type SkillType = 'single_damage' | 'aoe_damage' | 'heal' | 'buff' | 'debuff';
+export type SkillRange = '自身' | '单体' | '全体';
 
 export interface Skill {
   id: string;
@@ -22,6 +23,7 @@ export interface Skill {
     duration: number;
   };
   isPassive: boolean;
+  range?: SkillRange;
 }
 
 export const skills: Skill[] = [
@@ -30,6 +32,7 @@ export const skills: Skill[] = [
     name: '无双斩',
     icon: '⚔️',
     type: 'single_damage',
+    range: '单体',
     description: '对单体目标造成巨额物理伤害',
     cooldown: 8,
     manaCost: 50,
@@ -41,6 +44,7 @@ export const skills: Skill[] = [
     name: '冰霜冲击',
     icon: '❄️',
     type: 'aoe_damage',
+    range: '全体',
     description: '释放冰霜冲击波，对范围内敌人造成法术伤害并减速',
     cooldown: 12,
     manaCost: 80,
@@ -53,6 +57,7 @@ export const skills: Skill[] = [
     name: '治疗术',
     icon: '💚',
     type: 'heal',
+    range: '全体',
     description: '恢复自身和周围友军的生命值',
     cooldown: 15,
     manaCost: 100,
@@ -64,6 +69,7 @@ export const skills: Skill[] = [
     name: '破军',
     icon: '🗡️',
     type: 'single_damage',
+    range: '单体',
     description: '对生命值低于50%的目标造成额外伤害',
     cooldown: 10,
     manaCost: 60,
@@ -75,6 +81,7 @@ export const skills: Skill[] = [
     name: '狂暴之力',
     icon: '💪',
     type: 'buff',
+    range: '自身',
     description: '提升自身攻击力和移动速度',
     cooldown: 20,
     manaCost: 70,
@@ -86,6 +93,7 @@ export const skills: Skill[] = [
     name: '暗影刺杀',
     icon: '🗡️',
     type: 'single_damage',
+    range: '单体',
     description: '瞬移至目标身后，造成高额暴击伤害',
     cooldown: 6,
     manaCost: 45,
@@ -97,6 +105,7 @@ export const skills: Skill[] = [
     name: '烈焰风暴',
     icon: '🔥',
     type: 'aoe_damage',
+    range: '全体',
     description: '召唤烈焰风暴，对范围内敌人造成持续灼烧伤害',
     cooldown: 18,
     manaCost: 120,
@@ -108,6 +117,7 @@ export const skills: Skill[] = [
     name: '铁壁防御',
     icon: '🛡️',
     type: 'buff',
+    range: '自身',
     description: '大幅提升自身防御力，减少受到的伤害',
     cooldown: 25,
     manaCost: 90,
@@ -119,6 +129,7 @@ export const skills: Skill[] = [
     name: '万箭齐发',
     icon: '🏹',
     type: 'aoe_damage',
+    range: '全体',
     description: '向扇形区域射出大量箭矢，对范围内敌人造成伤害',
     cooldown: 14,
     manaCost: 75,
@@ -130,6 +141,7 @@ export const skills: Skill[] = [
     name: '眩晕打击',
     icon: '💫',
     type: 'debuff',
+    range: '单体',
     description: '重击目标使其眩晕，无法行动',
     cooldown: 16,
     manaCost: 85,
@@ -142,6 +154,7 @@ export const skills: Skill[] = [
     name: '生命源泉',
     icon: '🌿',
     type: 'heal',
+    range: '全体',
     description: '持续恢复目标生命值，治疗效果显著',
     cooldown: 20,
     manaCost: 110,
@@ -153,6 +166,7 @@ export const skills: Skill[] = [
     name: '破甲一击',
     icon: '⛏️',
     type: 'debuff',
+    range: '单体',
     description: '击破目标护甲，降低其防御力',
     cooldown: 9,
     manaCost: 55,
@@ -165,6 +179,7 @@ export const skills: Skill[] = [
     name: '疾速冲锋',
     icon: '💨',
     type: 'buff',
+    range: '自身',
     description: '大幅提升移动速度，快速突进或撤离战场',
     cooldown: 12,
     manaCost: 40,
@@ -176,6 +191,7 @@ export const skills: Skill[] = [
     name: '雷霆万钧',
     icon: '⚡',
     type: 'aoe_damage',
+    range: '全体',
     description: '召唤雷霆之力，对大范围敌人造成毁灭性伤害',
     cooldown: 30,
     manaCost: 200,
@@ -187,6 +203,7 @@ export const skills: Skill[] = [
     name: '嗜血本能',
     icon: '🩸',
     type: 'buff',
+    range: '自身',
     description: '被动提升吸血效果，攻击时恢复生命值',
     cooldown: 0,
     manaCost: 0,
@@ -198,6 +215,7 @@ export const skills: Skill[] = [
     name: '虚弱诅咒',
     icon: '☠️',
     type: 'debuff',
+    range: '单体',
     description: '诅咒目标，大幅降低其攻击力和移动速度',
     cooldown: 18,
     manaCost: 95,
@@ -209,6 +227,7 @@ export const skills: Skill[] = [
     name: '圣光庇护',
     icon: '✨',
     type: 'buff',
+    range: '全体',
     description: '为友军施加护盾，吸收伤害并提升防御',
     cooldown: 22,
     manaCost: 100,
@@ -221,6 +240,7 @@ export const skills: Skill[] = [
     name: '致命一击',
     icon: '💥',
     type: 'single_damage',
+    range: '单体',
     description: '精准打击敌人弱点，造成极高的单体伤害',
     cooldown: 15,
     manaCost: 90,

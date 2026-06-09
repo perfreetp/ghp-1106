@@ -17,6 +17,7 @@ import {
   Zap,
   Heart,
   Skull,
+  Gem,
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,14 @@ import { GameButton } from '@/components/common/GameButton';
 import { SkillIcon } from '@/components/common/SkillIcon';
 import { Modal } from '@/components/common/Modal';
 import type { BattleHero, BattleStep, SkillTemplate } from '@/types';
+import {
+  STAR_FAST_CLEAR_TURNS,
+  FAIL_TOO_MANY_TURNS,
+  REWARD_FIRST_CLEAR_GOLD_MULT,
+  REWARD_FIRST_CLEAR_DIAMOND,
+  REWARD_THREE_STAR_GOLD_MULT,
+  REWARD_THREE_STAR_DIAMOND,
+} from '@/types';
 import type { Skill } from '@/data/skills';
 
 const GRID_ROWS = 4;
@@ -79,6 +88,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
     settings,
     updateSettings,
     completeLevel,
+    levelProgress,
   } = useGameStore();
 
   const [showGiveUp, setShowGiveUp] = useState(false);
@@ -101,6 +111,36 @@ export default function BattleBoard(_props: BattleBoardProps) {
   const startedRef = useRef(false);
 
   const currentLevel = useMemo(() => levels.find((l: any) => l.id === levelId), [levelId]);
+
+  const victoryRewardDisplay = useMemo(() => {
+    if (battleResult !== 'win') return null;
+    const existing = levelProgress[levelId];
+    const isFirstClear = !existing?.cleared;
+    const baseGold = currentLevel?.reward?.gold ?? 200;
+    const baseExp = currentLevel?.reward?.exp ?? 100;
+
+    const firstClearGold = Math.round(baseGold * REWARD_FIRST_CLEAR_GOLD_MULT);
+    const threeStarGold = Math.round(baseGold * REWARD_THREE_STAR_GOLD_MULT);
+    const showFirstClear = isFirstClear;
+    const showThreeStar = battleStars >= 3 && !(existing?.threeStarClaimed || existing?.stars >= 3);
+
+    const totalGold =
+      baseGold + (showFirstClear ? firstClearGold : 0) + (showThreeStar ? threeStarGold : 0);
+    const totalDiamond =
+      (showFirstClear ? REWARD_FIRST_CLEAR_DIAMOND : 0) +
+      (showThreeStar ? REWARD_THREE_STAR_DIAMOND : 0);
+
+    return {
+      baseGold,
+      firstClearGold: showFirstClear ? firstClearGold : 0,
+      threeStarGold: showThreeStar ? threeStarGold : 0,
+      totalGold,
+      baseExp,
+      totalDiamond,
+      showFirstClear,
+      showThreeStar,
+    };
+  }, [battleResult, levelProgress, levelId, battleStars, currentLevel]);
 
   const currentLineup = useMemo(
     () => lineups.find((l) => l.id === currentLineupId) || lineups[0],
@@ -154,7 +194,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
       if (endResult === 'win') {
         const alliesDead = battleHeroes.filter((h) => h.isAlly && h.isDead).length;
         const noDeath = alliesDead === 0;
-        const fastClear = turn <= 12;
+        const fastClear = turn <= STAR_FAST_CLEAR_TURNS;
         starReward = 1;
         if (fastClear) starReward = 2;
         if (fastClear && noDeath) starReward = 3;
@@ -169,18 +209,18 @@ export default function BattleBoard(_props: BattleBoardProps) {
               { type: '经验' as const, count: baseExp },
             ],
             firstClear: [
-              { type: '金币' as const, count: Math.round(baseGold * 0.8) },
-              { type: '钻石' as const, count: 20 },
+              { type: '金币' as const, count: Math.round(baseGold * REWARD_FIRST_CLEAR_GOLD_MULT) },
+              { type: '钻石' as const, count: REWARD_FIRST_CLEAR_DIAMOND },
             ],
             threeStar: [
-              { type: '金币' as const, count: Math.round(baseGold * 1.2) },
-              { type: '钻石' as const, count: 50 },
+              { type: '金币' as const, count: Math.round(baseGold * REWARD_THREE_STAR_GOLD_MULT) },
+              { type: '钻石' as const, count: REWARD_THREE_STAR_DIAMOND },
             ],
           }
         : null;
       endBattle(endResult, levelRewards);
       if (endResult === 'win') {
-        completeLevel(levelId, starReward, levelRewards);
+        completeLevel(levelId, starReward, turn, levelRewards);
       }
     }
   }, [battleHeroes, battleResult]);
@@ -370,9 +410,21 @@ export default function BattleBoard(_props: BattleBoardProps) {
       const extras: string[] = [];
       if (r.damage) extras.push(`造成 ${r.damage} 伤害`);
       if (r.heal) extras.push(`恢复 ${r.heal} 生命`);
-      if (r.isCrit) extras.push('暴击！');
+      if (r.shieldGained) extras.push(`获得 ${r.shieldGained} 护盾`);
+      if (r.buffsAdded?.length) {
+        for (const b of r.buffsAdded) {
+          const statEntries = Object.entries(b.effects || {});
+          const statStr = statEntries.map(([k, v]) => `${k}+${v}`).join(' ');
+          extras.push(`[${b.name}] ${statStr || ''}(${b.duration}回合)`);
+        }
+      }
       if (r.shieldAbsorbed) extras.push(`护盾吸收 ${r.shieldAbsorbed}`);
-      targetParts.push(`对 ${tName} ${extras.join(' ')}`);
+      if (r.isCrit) extras.push('暴击！');
+      if (extras.length) {
+        targetParts.push(`对 ${tName} ${extras.join('，')}`);
+      } else {
+        targetParts.push(`对 ${tName}`);
+      }
     }
 
     let actionStr = '';
@@ -461,7 +513,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
                   />
                 </motion.div>
 
-                <div className="w-20">
+                <div className="w-20 flex flex-col gap-0.5">
                   <StatBar
                     current={hero.currentHP}
                     max={hero.maxHP}
@@ -470,6 +522,12 @@ export default function BattleBoard(_props: BattleBoardProps) {
                     height="sm"
                     size="full"
                   />
+                  {(hero.shield || 0) > 0 && (
+                    <div className="flex items-center justify-center gap-0.5 text-[10px] font-bold text-sky-300 drop-shadow">
+                      <span>🛡️</span>
+                      <span className="tabular-nums">{hero.shield}</span>
+                    </div>
+                  )}
                 </div>
 
                 <AnimatePresence>
@@ -564,7 +622,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
                 isDead={hero.isDead}
                 isEnemy={!hero.isAlly}
               />
-              <div className="w-12">
+              <div className="w-12 flex flex-col gap-0.5">
                 <StatBar
                   current={hero.currentHP}
                   max={hero.maxHP}
@@ -573,6 +631,11 @@ export default function BattleBoard(_props: BattleBoardProps) {
                   height="sm"
                   size="full"
                 />
+                {(hero.shield || 0) > 0 && (
+                  <div className="flex items-center justify-center text-[9px] font-bold text-sky-300 drop-shadow tabular-nums">
+                    🛡️{hero.shield}
+                  </div>
+                )}
               </div>
               {isCurrent && (
                 <motion.div
@@ -639,6 +702,9 @@ export default function BattleBoard(_props: BattleBoardProps) {
               </span>
             </div>
             <StatBar current={currentActor.currentHP} max={currentActor.maxHP} type="hp" height="sm" size="full" />
+            {(currentActor.shield || 0) > 0 && (
+              <StatBar current={currentActor.shield} max={Math.max(currentActor.shield, 1)} type="shield" height="sm" size="full" label={`护盾 ${currentActor.shield}`} showLabel={true} />
+            )}
             <StatBar current={currentActor.currentEnergy} max={currentActor.maxEnergy} type="energy" height="sm" size="full" />
           </div>
         </div>
@@ -1076,7 +1142,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
                 <Sparkles className="w-5 h-5 text-yellow-400" />
                 <span className="font-bold text-yellow-300">战斗奖励</span>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3" style={{ gridTemplateColumns: victoryRewardDisplay?.totalDiamond ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' }}>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1087,35 +1153,55 @@ export default function BattleBoard(_props: BattleBoardProps) {
                     <Coins className="w-7 h-7 text-yellow-400" />
                   </div>
                   <div className="text-2xl font-black text-yellow-300 tabular-nums">
-                    +{currentLevel?.reward?.gold || 500}
+                    +{victoryRewardDisplay?.totalGold ?? 0}
                   </div>
-                  <div className="text-xs text-slate-400">金币</div>
+                  <div className="text-xs text-slate-400 flex flex-col items-center">
+                    <span>金币</span>
+                    {victoryRewardDisplay?.showFirstClear && (
+                      <span className="text-amber-300 text-[10px]">首通+{victoryRewardDisplay.firstClearGold}</span>
+                    )}
+                    {victoryRewardDisplay?.showThreeStar && (
+                      <span className="text-amber-400 text-[10px]">三星+{victoryRewardDisplay.threeStarGold}</span>
+                    )}
+                  </div>
                 </motion.div>
+                {victoryRewardDisplay?.totalDiamond ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.65 }}
+                    className="flex flex-col items-center gap-1 p-3 rounded-xl bg-slate-900/60 border border-cyan-500/20"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-cyan-900/40 flex items-center justify-center border border-cyan-500/30">
+                      <Gem className="w-7 h-7 text-cyan-400" />
+                    </div>
+                    <div className="text-2xl font-black text-cyan-300 tabular-nums">
+                      +{victoryRewardDisplay.totalDiamond}
+                    </div>
+                    <div className="text-xs text-slate-400 flex flex-col items-center">
+                      <span>钻石</span>
+                      {victoryRewardDisplay.showFirstClear && (
+                        <span className="text-cyan-300 text-[10px]">首通+{REWARD_FIRST_CLEAR_DIAMOND}</span>
+                      )}
+                      {victoryRewardDisplay.showThreeStar && (
+                        <span className="text-cyan-400 text-[10px]">三星+{REWARD_THREE_STAR_DIAMOND}</span>
+                      )}
+                    </div>
+                  </motion.div>
+                ) : null}
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 }}
+                  transition={{ delay: victoryRewardDisplay?.totalDiamond ? 0.7 : 0.65 }}
                   className="flex flex-col items-center gap-1 p-3 rounded-xl bg-slate-900/60 border border-cyan-500/20"
                 >
                   <div className="w-12 h-12 rounded-full bg-cyan-900/40 flex items-center justify-center border border-cyan-500/30">
                     <Sparkles className="w-7 h-7 text-cyan-400" />
                   </div>
                   <div className="text-2xl font-black text-cyan-300 tabular-nums">
-                    +{turn * 50 + 200}
+                    +{victoryRewardDisplay?.baseExp ?? 0}
                   </div>
                   <div className="text-xs text-slate-400">经验</div>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="flex flex-col items-center gap-1 p-3 rounded-xl bg-slate-900/60 border border-purple-500/20"
-                >
-                  <div className="w-12 h-12 rounded-full bg-purple-900/40 flex items-center justify-center border border-purple-500/30">
-                    <span className="text-3xl">🎁</span>
-                  </div>
-                  <div className="text-lg font-bold text-purple-300">{turn < 8 ? '史诗' : '稀有'}</div>
-                  <div className="text-xs text-slate-400">装备掉落</div>
                 </motion.div>
               </div>
             </div>
@@ -1167,7 +1253,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
                     所有英雄已阵亡
                   </li>
                 )}
-                {turn > 20 && (
+                {turn > FAIL_TOO_MANY_TURNS && (
                   <li className="flex items-center gap-2 text-slate-300">
                     <span className="text-yellow-400">⚠</span>
                     战斗回合过多，建议提升英雄等级

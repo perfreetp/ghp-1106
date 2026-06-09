@@ -71,7 +71,7 @@ export interface GameStoreActions {
   createLineup: (name: string) => Lineup;
   updateLineup: (lineup: Lineup) => void;
   setCurrentLineup: (lineupId: string) => void;
-  completeLevel: (levelId: string, stars: number, rewards?: Rewards) => void;
+  completeLevel: (levelId: string, stars: number, actualTurns: number, rewards?: Rewards) => void;
   unlockAchievement: (id: string) => void;
   addBattleLog: (log: BattleLog) => void;
   updateSettings: (settings: Partial<GameSettings>) => void;
@@ -271,7 +271,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ currentLineupId: lineupId });
   },
 
-  completeLevel: (levelId: string, stars: number, rewards?: Rewards) => {
+  completeLevel: (levelId: string, stars: number, actualTurns: number, rewards?: Rewards) => {
     const { levelProgress, addGold } = get();
     const existing = levelProgress[levelId];
     const isFirstClear = !existing?.cleared;
@@ -283,7 +283,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stars: Math.max(existing?.stars || 0, stars),
       firstClearTime: existing?.firstClearTime || new Date().toISOString(),
       clearedCount: (existing?.clearedCount || 0) + 1,
-      bestTurns: existing?.bestTurns ? Math.min(existing.bestTurns, stars) : stars,
+      bestTurns: existing?.bestTurns ? Math.min(existing.bestTurns, actualTurns) : actualTurns,
       firstClearClaimed: existing?.firstClearClaimed || firstClearAvailable,
       threeStarClaimed: existing?.threeStarClaimed || threeStarAvailable,
     };

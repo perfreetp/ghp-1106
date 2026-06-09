@@ -160,7 +160,7 @@ const findSkillById = (skillId: string): SkillTemplate | null => {
     single_damage: '单体',
     aoe_damage: '全体',
     heal: '全体',
-    buff: '全体',
+    buff: '自身',
     debuff: '单体',
   };
   const effects: any[] = [];
@@ -216,7 +216,7 @@ const findSkillById = (skillId: string): SkillTemplate | null => {
     icon: raw.icon,
     cooldown: raw.cooldown,
     energyCost: raw.manaCost,
-    range: { type: rangeTypeMap[raw.type] || '单体', distance: 1 },
+    range: { type: (raw.range as any) || rangeTypeMap[raw.type] || '单体', distance: 1 },
     effects,
   };
 };
