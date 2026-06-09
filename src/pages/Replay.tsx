@@ -15,6 +15,7 @@ import { heroes } from '@/data/heroes';
 import type { BattleLog, BattleStep } from '@/types';
 
 type FilterResult = 'all' | 'win' | 'lose';
+type FilterStars = 0 | 1 | 2 | 3;
 
 const speeds = [0.5, 1, 2, 4];
 
@@ -128,6 +129,8 @@ const generateMockBattleLogs = (): BattleLog[] => {
       summary: {
         totalDamage: Math.floor(Math.random() * 20000) + 5000,
         totalHeal: Math.floor(Math.random() * 5000) + 1000,
+        totalShieldAbsorbed: Math.floor(Math.random() * 2000) + 500,
+        totalShieldGained: Math.floor(Math.random() * 3000) + 1000,
         damageByHero: {
           [allyIds[0]]: Math.floor(Math.random() * 10000) + 2000,
           [allyIds[1]]: Math.floor(Math.random() * 8000) + 1500,
@@ -138,6 +141,20 @@ const generateMockBattleLogs = (): BattleLog[] => {
           [allyIds[1]]: Math.floor(Math.random() * 6000) + 800,
           [allyIds[2]]: Math.floor(Math.random() * 5000) + 500,
         },
+        healByHero: {
+          [allyIds[2]]: Math.floor(Math.random() * 4000) + 800,
+        },
+        shieldAbsorbedByHero: {
+          [allyIds[0]]: Math.floor(Math.random() * 1500) + 300,
+        },
+        shieldGainedByHero: {
+          [allyIds[2]]: Math.floor(Math.random() * 2000) + 800,
+        },
+        isFastClear: totalTurns <= 12,
+        isNoDeath: Math.random() > 0.5,
+        topDamageHeroId: allyIds[0],
+        topHealHeroId: allyIds[2],
+        topShieldHeroId: allyIds[0],
       },
     });
   }
@@ -153,6 +170,7 @@ export default function Replay() {
   const [filterResult, setFilterResult] = useState<FilterResult>('all');
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterLevel, setFilterLevel] = useState<string>('');
+  const [filterStars, setFilterStars] = useState<FilterStars>(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -203,6 +221,7 @@ export default function Replay() {
     return battleLogs.filter((log) => {
       if (filterResult === 'win' && log.result !== '胜利') return false;
       if (filterResult === 'lose' && log.result !== '失败') return false;
+      if (filterStars > 0 && (log.stars || 0) < filterStars) return false;
       if (filterDate) {
         const logDate = new Date(log.startTime).toISOString().slice(0, 10);
         if (logDate !== filterDate) return false;
@@ -210,7 +229,7 @@ export default function Replay() {
       if (filterLevel && log.levelId !== filterLevel) return false;
       return true;
     });
-  }, [battleLogs, filterResult, filterDate, filterLevel]);
+  }, [battleLogs, filterResult, filterStars, filterDate, filterLevel]);
 
   const currentStep = selectedLog ? selectedLog.steps[currentStepIndex] : null;
   const stepsByTurn = useMemo(() => {
@@ -385,6 +404,28 @@ export default function Replay() {
                   ))}
                 </select>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 flex items-center gap-1">
+                  <Star className="w-3 h-3 text-yellow-400" /> 最低星数
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([0, 1, 2, 3] as FilterStars[]).map((s) => (
+                    <button
+                      key={s}
+                      className={cn(
+                        'py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-0.5',
+                        filterStars === s
+                          ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-lg shadow-yellow-500/30'
+                          : 'bg-black/30 text-slate-300 hover:bg-white/5 border border-white/10',
+                      )}
+                      onClick={() => setFilterStars(s)}
+                    >
+                      {s === 0 ? '全部' : Array.from({ length: s }).map((_, i) => <Star key={i} className="w-3 h-3 fill-current" />)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden">
@@ -541,7 +582,7 @@ export default function Replay() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <div className="bg-black/30 rounded-xl p-3 border border-white/5">
                       <p className="text-xs text-slate-500 mb-1">总伤害</p>
                       <p className="text-orange-300 font-bold text-xl tabular-nums">
@@ -552,6 +593,12 @@ export default function Replay() {
                       <p className="text-xs text-slate-500 mb-1">总治疗</p>
                       <p className="text-green-300 font-bold text-xl tabular-nums">
                         {selectedLog.summary.totalHeal.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-black/30 rounded-xl p-3 border border-white/5">
+                      <p className="text-xs text-slate-500 mb-1">护盾吸收</p>
+                      <p className="text-sky-300 font-bold text-xl tabular-nums">
+                        {(selectedLog.summary.totalShieldAbsorbed || 0).toLocaleString()}
                       </p>
                     </div>
                     <div className="bg-black/30 rounded-xl p-3 border border-white/5">
@@ -805,10 +852,18 @@ export default function Replay() {
                         <div className="space-y-1">
                           {currentStep.results.map((r, idx) => {
                             const targetHero = getHeroTemplate(r.targetId);
+                            const isKeyDamage = r.damage && r.damage >= 500;
+                            const isKeyHeal = r.heal && r.heal >= 300;
+                            const isKeyShield = (r.shieldAbsorbed || 0) >= 200 || (r.shieldGained || 0) >= 200;
                             return (
                               <div
                                 key={idx}
-                                className="flex items-center gap-2 text-sm bg-black/20 rounded-lg px-3 py-1.5"
+                                className={cn(
+                                  'flex flex-wrap items-center gap-2 text-sm rounded-lg px-3 py-1.5 border',
+                                  isKeyDamage || isKeyHeal || isKeyShield
+                                    ? 'bg-amber-950/30 border-amber-500/30'
+                                    : 'bg-black/20 border-transparent',
+                                )}
                               >
                                 <span className="text-slate-400">→</span>
                                 <span className="text-lg">
@@ -817,25 +872,54 @@ export default function Replay() {
                                 <span className="text-slate-200">
                                   {targetHero?.name || '未知'}
                                 </span>
-                                {r.damage !== undefined && (
-                                  <span
-                                    className={cn(
-                                      'font-bold ml-auto tabular-nums',
-                                      r.isCrit
-                                        ? 'text-orange-400 text-base'
-                                        : 'text-red-400',
-                                    )}
-                                  >
-                                    {r.isCrit && '💥 '}-
-                                    {r.damage.toLocaleString()}
-                                    {r.isCrit && ' (暴击!)'}
-                                  </span>
-                                )}
-                                {r.heal !== undefined && (
-                                  <span className="text-green-400 font-bold ml-auto tabular-nums">
-                                    +{r.heal.toLocaleString()}
-                                  </span>
-                                )}
+                                <div className="ml-auto flex flex-wrap gap-1 items-center justify-end">
+                                  {r.damage !== undefined && (
+                                    <span
+                                      className={cn(
+                                        'font-bold tabular-nums px-2 py-0.5 rounded-md',
+                                        r.isCrit
+                                          ? 'text-orange-300 bg-orange-950/50 text-base'
+                                          : 'text-red-400 bg-red-950/30',
+                                      )}
+                                    >
+                                      {r.isCrit && '💥 '}-
+                                      {r.damage.toLocaleString()}
+                                      {r.isCrit && ' (暴击!)'}
+                                    </span>
+                                  )}
+                                  {r.shieldAbsorbed ? (
+                                    <span className="text-sky-300 font-bold tabular-nums px-2 py-0.5 rounded-md bg-sky-950/30">
+                                      🛡️ 吸收 {r.shieldAbsorbed}
+                                    </span>
+                                  ) : null}
+                                  {r.shieldGained ? (
+                                    <span className="text-cyan-300 font-bold tabular-nums px-2 py-0.5 rounded-md bg-cyan-950/30">
+                                      +{r.shieldGained} 护盾
+                                    </span>
+                                  ) : null}
+                                  {r.heal !== undefined && (
+                                    <span className="text-green-400 font-bold tabular-nums px-2 py-0.5 rounded-md bg-emerald-950/30">
+                                      +{r.heal.toLocaleString()}
+                                    </span>
+                                  )}
+                                  {r.buffsAdded?.length
+                                    ? r.buffsAdded.map((b, bi) => (
+                                        <span
+                                          key={bi}
+                                          className={cn(
+                                            'text-[10px] font-bold px-2 py-0.5 rounded-md tabular-nums',
+                                            b.type === '增益'
+                                              ? 'bg-blue-950/40 text-blue-300 border border-blue-500/30'
+                                              : b.type === '减益'
+                                              ? 'bg-purple-950/40 text-purple-300 border border-purple-500/30'
+                                              : 'bg-slate-950/40 text-slate-300',
+                                          )}
+                                        >
+                                          [{b.name}] {b.duration}回合
+                                        </span>
+                                      ))
+                                    : null}
+                                </div>
                               </div>
                             );
                           })}

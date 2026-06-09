@@ -16,6 +16,8 @@ import {
   Zap,
   Skull,
   Play,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import { levels as allLevels, type Level, type Enemy } from '@/data/levels';
 import { heroes as heroTemplates } from '@/data/heroes';
@@ -24,6 +26,7 @@ import { HeroAvatar } from '@/components/common/HeroAvatar';
 import { GameButton } from '@/components/common/GameButton';
 import { Modal } from '@/components/common/Modal';
 import { STAR_FAST_CLEAR_TURNS } from '@/types';
+import { cn } from '@/lib/utils';
 
 const CHAPTERS = [
   { id: 1, name: '第一章 新手试炼', icon: '🌱' },
@@ -501,6 +504,102 @@ export default function LevelMap() {
                 })}
               </div>
             </div>
+
+            {/* 历史战绩 & 领取状态 */}
+            {(() => {
+              const prog = store.levelProgress[selectedLevel.id];
+              if (!prog?.cleared) return null;
+              return (
+                <div>
+                  <h4 className="mb-2 flex items-center gap-2 font-title text-base font-bold text-slate-200">
+                    <Clock size={16} className="text-cyan-400" />
+                    历史战绩
+                  </h4>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-3 py-2.5">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                        最高星数
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-0.5">
+                        {[1, 2, 3].map((s) => (
+                          <Star
+                            key={s}
+                            size={16}
+                            className={
+                              s <= (prog.stars || 0)
+                                ? 'fill-amber-400 text-amber-400 drop-shadow'
+                                : 'text-slate-700'
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-green-500/20 bg-green-950/20 px-3 py-2.5">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                        最佳回合
+                      </div>
+                      <div className="mt-0.5 text-lg font-bold text-green-300 tabular-nums">
+                        {prog.bestTurns ?? '-'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-purple-500/20 bg-purple-950/20 px-3 py-2.5">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                        通关次数
+                      </div>
+                      <div className="mt-0.5 text-lg font-bold text-purple-300 tabular-nums">
+                        {prog.clearedCount ?? 1}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border',
+                        prog.firstClearClaimed
+                          ? 'bg-amber-950/30 border-amber-500/30 text-amber-300'
+                          : 'bg-slate-900/40 border-slate-700 text-slate-500 line-through',
+                      )}
+                    >
+                      <Crown size={14} />
+                      <span>首通奖励</span>
+                      <span className="ml-1">
+                        {prog.firstClearClaimed ? '✓ 已领取' : '未领取'}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border',
+                        prog.threeStarClaimed || prog.stars >= 3
+                          ? 'bg-sky-950/30 border-sky-500/30 text-sky-300'
+                          : 'bg-slate-900/40 border-slate-700 text-slate-500 line-through',
+                      )}
+                    >
+                      <Star size={14} className="fill-current" />
+                      <span>三星奖励</span>
+                      <span className="ml-1">
+                        {prog.threeStarClaimed || prog.stars >= 3
+                          ? '✓ 已领取'
+                          : '未达成'}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border',
+                        'bg-slate-900/40 border-slate-700 text-slate-400',
+                      )}
+                    >
+                      <Calendar size={14} />
+                      <span>首次通关</span>
+                      <span className="ml-1 tabular-nums">
+                        {prog.firstClearTime
+                          ? new Date(prog.firstClearTime).toLocaleDateString('zh-CN')
+                          : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* 敌方阵容 */}
             <div>

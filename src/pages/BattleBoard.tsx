@@ -89,6 +89,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
     updateSettings,
     completeLevel,
     levelProgress,
+    addBattleLog,
   } = useGameStore();
 
   const [showGiveUp, setShowGiveUp] = useState(false);
@@ -142,6 +143,49 @@ export default function BattleBoard(_props: BattleBoardProps) {
     };
   }, [battleResult, levelProgress, levelId, battleStars, currentLevel]);
 
+  const performanceSummary = useMemo(() => {
+    if (battleResult !== 'win') return null;
+    const tplOf = (instanceId: string) =>
+      battleHeroes.find((h) => h.instanceId === instanceId)?.templateId || 'unknown';
+    const nameOf = (tplId: string) => getHeroTemplate(tplId)?.name || tplId;
+
+    const damageByHero: Record<string, number> = {};
+    const healByHero: Record<string, number> = {};
+    const shieldAbsorbedByHero: Record<string, number> = {};
+
+    for (const step of battleSteps) {
+      const actorTpl = tplOf(step.actorId);
+      for (const r of step.results) {
+        const targetTpl = tplOf(r.targetId);
+        if (r.damage) damageByHero[actorTpl] = (damageByHero[actorTpl] || 0) + r.damage;
+        if (r.heal) healByHero[actorTpl] = (healByHero[actorTpl] || 0) + r.heal;
+        if (r.shieldAbsorbed)
+          shieldAbsorbedByHero[targetTpl] = (shieldAbsorbedByHero[targetTpl] || 0) + r.shieldAbsorbed;
+      }
+    }
+
+    const topDamage = Object.entries(damageByHero).sort((a, b) => b[1] - a[1])[0];
+    const topHeal = Object.entries(healByHero).sort((a, b) => b[1] - a[1])[0];
+    const topShield = Object.entries(shieldAbsorbedByHero).sort((a, b) => b[1] - a[1])[0];
+
+    const alliesDead = battleHeroes.filter((h) => h.isAlly && h.isDead).length;
+    const noDeath = alliesDead === 0;
+    const fastClear = turn <= STAR_FAST_CLEAR_TURNS;
+
+    return {
+      conditions: [
+        { icon: '🏆', label: '通关关卡', passed: true },
+        { icon: '⚡', label: `回合数 ≤ ${STAR_FAST_CLEAR_TURNS}（本回 ${turn}）`, passed: fastClear },
+        { icon: '💚', label: `无英雄阵亡（阵亡 ${alliesDead} 人）`, passed: noDeath },
+      ],
+      topDamageHero: topDamage ? { name: nameOf(topDamage[0]), value: topDamage[1] } : null,
+      topHealHero: topHeal ? { name: nameOf(topHeal[0]), value: topHeal[1] } : null,
+      topShieldHero: topShield ? { name: nameOf(topShield[0]), value: topShield[1] } : null,
+      noDeath,
+      fastClear,
+    };
+  }, [battleResult, battleHeroes, battleSteps, turn]);
+
   const currentLineup = useMemo(
     () => lineups.find((l) => l.id === currentLineupId) || lineups[0],
     [lineups, currentLineupId]
@@ -191,10 +235,12 @@ export default function BattleBoard(_props: BattleBoardProps) {
     const endResult = checkBattleEnd();
     if (endResult && !battleResult) {
       let starReward = 0;
+      let noDeath = false;
+      let fastClear = false;
       if (endResult === 'win') {
         const alliesDead = battleHeroes.filter((h) => h.isAlly && h.isDead).length;
-        const noDeath = alliesDead === 0;
-        const fastClear = turn <= STAR_FAST_CLEAR_TURNS;
+        noDeath = alliesDead === 0;
+        fastClear = turn <= STAR_FAST_CLEAR_TURNS;
         starReward = 1;
         if (fastClear) starReward = 2;
         if (fastClear && noDeath) starReward = 3;
@@ -222,6 +268,80 @@ export default function BattleBoard(_props: BattleBoardProps) {
       if (endResult === 'win') {
         completeLevel(levelId, starReward, turn, levelRewards);
       }
+
+      // ==== 构建战斗摘要并保存复盘日志 ====
+      const tplOf = (instanceId: string) =>
+        battleHeroes.find((h) => h.instanceId === instanceId)?.templateId || 'unknown';
+      const damageByHero: Record<string, number> = {};
+      const damageTakenByHero: Record<string, number> = {};
+      const healByHero: Record<string, number> = {};
+      const shieldAbsorbedByHero: Record<string, number> = {};
+      const shieldGainedByHero: Record<string, number> = {};
+      let totalDamage = 0;
+      let totalHeal = 0;
+      let totalShieldAbsorbed = 0;
+      let totalShieldGained = 0;
+
+      for (const step of battleSteps) {
+        const actorTpl = tplOf(step.actorId);
+        for (const r of step.results) {
+          const targetTpl = tplOf(r.targetId);
+          if (r.damage) {
+            damageByHero[actorTpl] = (damageByHero[actorTpl] || 0) + r.damage;
+            damageTakenByHero[targetTpl] = (damageTakenByHero[targetTpl] || 0) + r.damage;
+            totalDamage += r.damage;
+          }
+          if (r.heal) {
+            healByHero[actorTpl] = (healByHero[actorTpl] || 0) + r.heal;
+            totalHeal += r.heal;
+          }
+          if (r.shieldAbsorbed) {
+            shieldAbsorbedByHero[targetTpl] = (shieldAbsorbedByHero[targetTpl] || 0) + r.shieldAbsorbed;
+            totalShieldAbsorbed += r.shieldAbsorbed;
+          }
+          if (r.shieldGained) {
+            shieldGainedByHero[actorTpl] = (shieldGainedByHero[actorTpl] || 0) + r.shieldGained;
+            totalShieldGained += r.shieldGained;
+          }
+        }
+      }
+
+      const topDamageHeroId = Object.entries(damageByHero).sort((a, b) => b[1] - a[1])[0]?.[0];
+      const topHealHeroId = Object.entries(healByHero).sort((a, b) => b[1] - a[1])[0]?.[0];
+      const topShieldHeroId = Object.entries(shieldAbsorbedByHero).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+      const allyTemplateIds = battleHeroes.filter((h) => h.isAlly).map((h) => h.templateId);
+      const enemyTemplateIds = battleHeroes.filter((h) => !h.isAlly).map((h) => h.templateId);
+
+      const resultCn: any = endResult === 'win' ? '胜利' : endResult === 'lose' ? '失败' : '平局';
+      addBattleLog({
+        id: `log_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+        levelId,
+        startTime: new Date(battleStartTime).toISOString(),
+        endTime: new Date().toISOString(),
+        totalTurns: turn,
+        result: resultCn,
+        stars: endResult === 'win' ? starReward : 0,
+        allyHeroIds: allyTemplateIds,
+        enemyHeroIds: enemyTemplateIds,
+        steps: battleSteps,
+        summary: {
+          totalDamage,
+          totalHeal,
+          totalShieldAbsorbed,
+          totalShieldGained,
+          damageByHero,
+          damageTakenByHero,
+          healByHero,
+          shieldAbsorbedByHero,
+          shieldGainedByHero,
+          isFastClear: fastClear,
+          isNoDeath: noDeath,
+          topDamageHeroId,
+          topHealHeroId,
+          topShieldHeroId,
+        },
+      });
     }
   }, [battleHeroes, battleResult]);
 
@@ -1135,6 +1255,74 @@ export default function BattleBoard(_props: BattleBoardProps) {
                   </motion.div>
                 );
               })}
+            </div>
+
+            {/* 本局表现小结 */}
+            <div className="w-full p-4 rounded-2xl bg-slate-800/50 border border-cyan-500/20">
+              <div className="flex items-center gap-2 mb-3">
+                <Swords className="w-5 h-5 text-cyan-400" />
+                <span className="font-bold text-cyan-300">本局表现</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3 text-xs">
+                {performanceSummary?.conditions.map((c, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2 rounded-lg border',
+                      c.passed
+                        ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                        : 'bg-slate-900/60 border-slate-700 text-slate-500 line-through'
+                    )}
+                  >
+                    <span>{c.icon}</span>
+                    <span>{c.label}</span>
+                    <span className="ml-auto text-xs font-bold">
+                      {c.passed ? '✓' : '×'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px]">
+                {performanceSummary?.topDamageHero && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-950/40 border border-red-500/30">
+                    <span className="text-lg">⚔️</span>
+                    <div className="flex flex-col">
+                      <span className="text-slate-300 font-semibold">
+                        {performanceSummary.topDamageHero.name}
+                      </span>
+                      <span className="text-red-400 tabular-nums">
+                        主输出 {performanceSummary.topDamageHero.value} 伤害
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {performanceSummary?.topHealHero && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30">
+                    <span className="text-lg">💚</span>
+                    <div className="flex flex-col">
+                      <span className="text-slate-300 font-semibold">
+                        {performanceSummary.topHealHero.name}
+                      </span>
+                      <span className="text-emerald-400 tabular-nums">
+                        主治疗 {performanceSummary.topHealHero.value} 恢复
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {performanceSummary?.topShieldHero && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-950/40 border border-sky-500/30">
+                    <span className="text-lg">🛡️</span>
+                    <div className="flex flex-col">
+                      <span className="text-slate-300 font-semibold">
+                        {performanceSummary.topShieldHero.name}
+                      </span>
+                      <span className="text-sky-400 tabular-nums">
+                        护盾吸收 {performanceSummary.topShieldHero.value}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="w-full p-4 rounded-2xl bg-slate-800/50 border border-yellow-500/20">

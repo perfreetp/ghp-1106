@@ -539,10 +539,30 @@ export interface BattleLog {
     totalDamage: number;
     /** 总治疗 */
     totalHeal: number;
-    /** 每个英雄的伤害贡献 */
+    /** 总护盾吸收 */
+    totalShieldAbsorbed: number;
+    /** 总获得护盾 */
+    totalShieldGained: number;
+    /** 每个英雄的伤害贡献（英雄模板ID → 数值） */
     damageByHero: Record<string, number>;
     /** 每个英雄的承伤 */
     damageTakenByHero: Record<string, number>;
+    /** 每个英雄的治疗贡献 */
+    healByHero: Record<string, number>;
+    /** 每个英雄的护盾吸收量 */
+    shieldAbsorbedByHero: Record<string, number>;
+    /** 每个英雄的护盾施加量 */
+    shieldGainedByHero: Record<string, number>;
+    /** 最快通关（回合≤阈值） */
+    isFastClear?: boolean;
+    /** 无人阵亡 */
+    isNoDeath?: boolean;
+    /** 主要输出（英雄模板ID） */
+    topDamageHeroId?: string;
+    /** 主要治疗（英雄模板ID） */
+    topHealHeroId?: string;
+    /** 护盾大师（吸收最多护盾的英雄模板ID） */
+    topShieldHeroId?: string;
   };
 }
 
