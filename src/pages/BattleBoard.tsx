@@ -69,6 +69,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
     executeAction,
     checkBattleEnd,
     endBattle,
+    findSkillById,
   } = useBattleStore();
 
   const {
@@ -148,7 +149,15 @@ export default function BattleBoard(_props: BattleBoardProps) {
   useEffect(() => {
     const endResult = checkBattleEnd();
     if (endResult && !battleResult) {
-      const starReward = endResult === 'win' ? Math.max(1, 3 - Math.floor(turn / 10)) : 0;
+      let starReward = 0;
+      if (endResult === 'win') {
+        const alliesDead = battleHeroes.filter((h) => h.isAlly && h.isDead).length;
+        const noDeath = alliesDead === 0;
+        const fastClear = turn <= 12;
+        starReward = 1;
+        if (fastClear) starReward = 2;
+        if (fastClear && noDeath) starReward = 3;
+      }
       const levelRewards: any = currentLevel?.reward
         ? {
             base: [
@@ -177,7 +186,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
   };
 
   const getSkillTemplate = (skillId: string): SkillTemplate | null => {
-    return (useBattleStore.getState() as any).findSkillById?.(skillId) || null;
+    return findSkillById(skillId);
   };
 
   const addFloatingDamage = (instanceId: string, value: number, type: FloatingDamage['type']) => {
@@ -381,11 +390,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
       for (let col = 0; col < GRID_COLS; col++) {
         const isEnemyZone = row < 2;
         const hero = battleHeroes.find((h) => {
-          if (h.isAlly) {
-            return h.position.row + 2 === row && h.position.col + 1 === col;
-          } else {
-            return h.position.row === row && h.position.col + 1 === col;
-          }
+          return h.position.row === row && h.position.col === col;
         });
         const isCurrentActor = hero?.instanceId === currentActorId;
         const isValidTarget = hero && validTargets.includes(hero.instanceId);

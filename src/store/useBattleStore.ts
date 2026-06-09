@@ -255,6 +255,7 @@ export interface BattleStoreActions {
   checkBattleEnd: () => BattleResultType;
   endBattle: (result: BattleResultType, rewards?: Rewards) => void;
   recordStep: (step: BattleStep) => void;
+  findSkillById: (skillId: string) => SkillTemplate | null;
 }
 
 export type BattleStore = BattleStoreState & BattleStoreActions;
@@ -631,4 +632,6 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
   recordStep: (step: BattleStep) => {
     set({ battleSteps: [...get().battleSteps, step] });
   },
+
+  findSkillById,
 }));

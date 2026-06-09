@@ -77,7 +77,7 @@ export default function Settings() {
     }
   }, [tabFromQuery]);
 
-  const [saveSlots] = useState(() => {
+  const [saveSlots, setSaveSlots] = useState(() => {
     const slots = [];
     for (let i = 1; i <= 5; i++) {
       const raw = localStorage.getItem(`game_save_slots_slot_${i}`);
@@ -104,7 +104,7 @@ export default function Settings() {
     return slots;
   });
 
-  const [dailyState] = useState(() => {
+  const [dailyState, setDailyState] = useState(() => {
     const today = new Date().toISOString().split('T')[0];
     const raw = localStorage.getItem('daily_sign_in');
     if (raw) {
@@ -147,6 +147,55 @@ export default function Settings() {
       localStorage.removeItem(`game_save_slots_slot_${slot}`);
     }
     setShowConfirmModal({ open: false, type: 'save' });
+    refreshSaveSlots();
+  };
+
+  const refreshSaveSlots = () => {
+    const slots = [];
+    for (let i = 1; i <= 5; i++) {
+      const raw = localStorage.getItem(`game_save_slots_slot_${i}`);
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          slots.push({
+            slot: i,
+            name: data.name || `存档${i}`,
+            lastSavedAt: data.lastSavedAt,
+            playerLevel: data.playerLevel || 1,
+            heroCount: data.heroInstances?.length || 0,
+            lineupCount: data.lineups?.length || 0,
+            gold: data.currency?.gold || 0,
+            diamond: data.currency?.diamond || 0,
+          });
+        } catch {
+          slots.push({ slot: i, empty: true });
+        }
+      } else {
+        slots.push({ slot: i, empty: true });
+      }
+    }
+    setSaveSlots(slots);
+  };
+
+  const handleSignIn = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const newContinuous = (() => {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      return dailyState.lastSignDate === yesterday ? dailyState.continuousDays + 1 : 1;
+    })();
+    const rewards = [
+      { gold: 200, diamond: 0 }, { gold: 300, diamond: 0 }, { gold: 400, diamond: 10 },
+      { gold: 500, diamond: 20 }, { gold: 600, diamond: 30 }, { gold: 800, diamond: 50 },
+      { gold: 1500, diamond: 200 },
+    ];
+    const dayIndex = (newContinuous - 1) % 7;
+    const { gold, diamond } = rewards[dayIndex];
+    useGameStore.getState().addGold(gold);
+    useGameStore.setState({ diamond: useGameStore.getState().diamond + diamond });
+    localStorage.setItem('daily_sign_in', JSON.stringify({
+      lastSignDate: today, continuousDays: newContinuous,
+    }));
+    setDailyState({ lastSignDate: today, continuousDays: newContinuous, signedToday: true });
   };
 
   const formatDate = (isoString: string) => {
@@ -250,7 +299,7 @@ export default function Settings() {
                 />
               )}
               {activeTab === 'daily' && (
-                <DailySignIn dailyState={dailyState} gold={gold} diamond={diamond} />
+                <DailySignIn dailyState={dailyState} gold={gold} diamond={diamond} onSignIn={handleSignIn} />
               )}
               {activeTab === 'about' && (
                 <AboutSection
@@ -754,10 +803,12 @@ function DailySignIn({
   dailyState,
   gold,
   diamond,
+  onSignIn,
 }: {
   dailyState: { lastSignDate: string; continuousDays: number; signedToday: boolean };
   gold: number;
   diamond: number;
+  onSignIn: () => void;
 }) {
   const rewards = Array.from({ length: 7 }, (_, i) => ({
     day: i + 1,
@@ -788,6 +839,7 @@ function DailySignIn({
 
           <button
             disabled={dailyState.signedToday}
+            onClick={onSignIn}
             className={`btn-gold !text-xl flex items-center gap-2 ${
               dailyState.signedToday
                 ? '!from-slate-600 !to-slate-500 !border-slate-400'
