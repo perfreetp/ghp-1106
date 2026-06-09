@@ -89,6 +89,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
   const [battleStartTime] = useState(Date.now());
   const [elapsedTime, setElapsedTime] = useState(0);
   const [skillFlashHeroId, setSkillFlashHeroId] = useState<string | null>(null);
+  const [battleStars, setBattleStars] = useState(0);
 
   const timerRef = useRef<number | null>(null);
   const actionLockRef = useRef(false);
@@ -158,11 +159,22 @@ export default function BattleBoard(_props: BattleBoardProps) {
         if (fastClear) starReward = 2;
         if (fastClear && noDeath) starReward = 3;
       }
+      setBattleStars(starReward);
+      const baseGold = currentLevel?.reward?.gold ?? 200;
+      const baseExp = currentLevel?.reward?.exp ?? 100;
       const levelRewards: any = currentLevel?.reward
         ? {
             base: [
-              { type: '金币' as const, count: currentLevel.reward.gold },
-              { type: '经验' as const, count: currentLevel.reward.exp },
+              { type: '金币' as const, count: baseGold },
+              { type: '经验' as const, count: baseExp },
+            ],
+            firstClear: [
+              { type: '金币' as const, count: Math.round(baseGold * 0.8) },
+              { type: '钻石' as const, count: 20 },
+            ],
+            threeStar: [
+              { type: '金币' as const, count: Math.round(baseGold * 1.2) },
+              { type: '钻石' as const, count: 50 },
             ],
           }
         : null;
@@ -1033,8 +1045,7 @@ export default function BattleBoard(_props: BattleBoardProps) {
 
             <div className="flex gap-3">
               {[1, 2, 3].map((s) => {
-                const stars = rewards ? 3 : 1;
-                const got = s <= stars;
+                const got = s <= battleStars;
                 return (
                   <motion.div
                     key={s}
@@ -1046,12 +1057,12 @@ export default function BattleBoard(_props: BattleBoardProps) {
                       className={cn(
                         'w-16 h-16 drop-shadow-lg',
                         got
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'fill-slate-700/50 text-slate-600'
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-slate-700'
                       )}
                       style={
                         got
-                          ? { filter: 'drop-shadow(0 0 12px rgba(250,204,21,0.8))' }
+                          ? { filter: 'drop-shadow(0 0 12px rgba(251,191,36,0.8))' }
                           : undefined
                       }
                     />

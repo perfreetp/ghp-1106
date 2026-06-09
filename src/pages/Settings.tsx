@@ -53,6 +53,16 @@ const QUALITY_OPTIONS: 画质等级[] = ['低', '中', '高', '极致'];
 const LANGUAGE_OPTIONS: 语言[] = ['简体中文', '繁體中文', 'English', '日本語'];
 const BATTLE_SPEED_OPTIONS = [1, 1.5, 2, 3];
 
+const DAILY_SIGNIN_REWARDS = [
+  { day: 1, gold: 200, diamond: 0 },
+  { day: 2, gold: 300, diamond: 0 },
+  { day: 3, gold: 400, diamond: 10 },
+  { day: 4, gold: 500, diamond: 20 },
+  { day: 5, gold: 600, diamond: 30 },
+  { day: 6, gold: 800, diamond: 50 },
+  { day: 7, gold: 1500, diamond: 200, isSpecial: true },
+];
+
 export default function Settings() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -183,13 +193,8 @@ export default function Settings() {
       const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
       return dailyState.lastSignDate === yesterday ? dailyState.continuousDays + 1 : 1;
     })();
-    const rewards = [
-      { gold: 200, diamond: 0 }, { gold: 300, diamond: 0 }, { gold: 400, diamond: 10 },
-      { gold: 500, diamond: 20 }, { gold: 600, diamond: 30 }, { gold: 800, diamond: 50 },
-      { gold: 1500, diamond: 200 },
-    ];
     const dayIndex = (newContinuous - 1) % 7;
-    const { gold, diamond } = rewards[dayIndex];
+    const { gold, diamond } = DAILY_SIGNIN_REWARDS[dayIndex];
     useGameStore.getState().addGold(gold);
     useGameStore.setState({ diamond: useGameStore.getState().diamond + diamond });
     localStorage.setItem('daily_sign_in', JSON.stringify({
@@ -810,12 +815,7 @@ function DailySignIn({
   diamond: number;
   onSignIn: () => void;
 }) {
-  const rewards = Array.from({ length: 7 }, (_, i) => ({
-    day: i + 1,
-    gold: (i + 1) * 100 + (i >= 3 ? 200 : 0) + (i === 6 ? 500 : 0),
-    diamond: i === 2 ? 20 : i === 4 ? 50 : i === 6 ? 100 : 0,
-    isSpecial: i === 6,
-  }));
+  const rewards = DAILY_SIGNIN_REWARDS;
 
   return (
     <div className="space-y-8">

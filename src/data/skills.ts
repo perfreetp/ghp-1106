@@ -10,6 +10,7 @@ export interface Skill {
   manaCost: number;
   damage?: number;
   heal?: number;
+  shield?: number;
   buffEffect?: {
     stat: 'attack' | 'defense' | 'speed' | 'hp';
     value: number;
@@ -211,6 +212,7 @@ export const skills: Skill[] = [
     description: '为友军施加护盾，吸收伤害并提升防御',
     cooldown: 22,
     manaCost: 100,
+    shield: 300,
     buffEffect: { stat: 'defense', value: 60, duration: 8 },
     isPassive: false,
   },

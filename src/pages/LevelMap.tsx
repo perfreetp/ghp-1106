@@ -114,8 +114,7 @@ export default function LevelMap() {
     return chapterLevels.map((level, idx): MapNode => {
       const prog = progress[idx];
       const isBoss = idx === chapterLevels.length - 1;
-      const baseStars = prog?.stars || 0;
-      const stars = isBoss && prog?.cleared ? Math.max(baseStars, 3) : baseStars;
+      const stars = prog?.stars || 0;
 
       let status: NodeStatus;
       if (challengeMode && isBoss && prog?.cleared) {

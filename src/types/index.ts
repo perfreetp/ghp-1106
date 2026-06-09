@@ -92,6 +92,10 @@ export interface SkillEffect {
   stacks?: number;
   /** 关联属性（伤害基于攻击、治疗基于生命等） */
   basedOn?: keyof Stats;
+  /** 影响的属性键（增益/减益，如 atk/def/speed） */
+  stat?: keyof Stats;
+  /** 是否为控制类效果（眩晕等） */
+  isControl?: boolean;
 }
 
 /**
@@ -725,6 +729,10 @@ export interface LevelProgress {
   clearedCount: number;
   /** 最高回合数（越少越好） */
   bestTurns?: number;
+  /** 首通奖励是否已领取 */
+  firstClearClaimed?: boolean;
+  /** 三星奖励是否已领取 */
+  threeStarClaimed?: boolean;
 }
 
 /**

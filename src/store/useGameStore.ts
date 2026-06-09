@@ -275,12 +275,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { levelProgress, addGold } = get();
     const existing = levelProgress[levelId];
     const isFirstClear = !existing?.cleared;
+    const firstClearAvailable = isFirstClear && !existing?.firstClearClaimed;
+    const threeStarAvailable = stars >= 3 && !(existing?.threeStarClaimed || existing?.stars >= 3);
 
     const newProgress: LevelProgress = {
       cleared: true,
       stars: Math.max(existing?.stars || 0, stars),
       firstClearTime: existing?.firstClearTime || new Date().toISOString(),
       clearedCount: (existing?.clearedCount || 0) + 1,
+      bestTurns: existing?.bestTurns ? Math.min(existing.bestTurns, stars) : stars,
+      firstClearClaimed: existing?.firstClearClaimed || firstClearAvailable,
+      threeStarClaimed: existing?.threeStarClaimed || threeStarAvailable,
     };
 
     set({
@@ -288,17 +293,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
 
     if (rewards) {
-      for (const r of rewards.base) {
-        if (r.type === '金币') addGold(r.count);
-        if (r.type === '钻石') set({ diamond: get().diamond + r.count });
+      if (rewards.base) {
+        for (const r of rewards.base) {
+          if (r.type === '金币') addGold(r.count);
+          if (r.type === '钻石') set({ diamond: get().diamond + r.count });
+        }
       }
-      if (isFirstClear && rewards.firstClear) {
+      if (firstClearAvailable && rewards.firstClear) {
         for (const r of rewards.firstClear) {
           if (r.type === '金币') addGold(r.count);
           if (r.type === '钻石') set({ diamond: get().diamond + r.count });
         }
       }
-      if (stars >= 3 && rewards.threeStar) {
+      if (threeStarAvailable && rewards.threeStar) {
         for (const r of rewards.threeStar) {
           if (r.type === '金币') addGold(r.count);
           if (r.type === '钻石') set({ diamond: get().diamond + r.count });

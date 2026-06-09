@@ -121,6 +121,31 @@ const computeActionOrder = (battleHeroes: BattleHero[]): string[] => {
   return sorted.map((h) => h.instanceId);
 };
 
+const STAT_KEY_MAP: Record<string, keyof Stats> = {
+  attack: 'atk',
+  defense: 'def',
+  speed: 'speed',
+  hp: 'hp',
+};
+
+const getEffectiveStats = (hero: BattleHero): Stats => {
+  const base = { ...hero.stats };
+  for (const buff of hero.buffs) {
+    if (!buff.effects) continue;
+    for (const [k, v] of Object.entries(buff.effects)) {
+      const key = k as keyof Stats;
+      if (typeof base[key] === 'number' && typeof v === 'number') {
+        if (buff.type === '增益') {
+          (base as any)[key] = (base as any)[key] + v;
+        } else if (buff.type === '减益') {
+          (base as any)[key] = Math.max(0, (base as any)[key] - v);
+        }
+      }
+    }
+  }
+  return base;
+};
+
 const findSkillById = (skillId: string): SkillTemplate | null => {
   const raw = skills.find((s) => s.id === skillId);
   if (!raw) return null;
@@ -135,7 +160,7 @@ const findSkillById = (skillId: string): SkillTemplate | null => {
     single_damage: '单体',
     aoe_damage: '全体',
     heal: '全体',
-    buff: '自身',
+    buff: '全体',
     debuff: '单体',
   };
   const effects: any[] = [];
@@ -155,19 +180,31 @@ const findSkillById = (skillId: string): SkillTemplate | null => {
       basedOn: 'hp' as const,
     });
   }
+  if (raw.shield) {
+    effects.push({
+      type: '护盾' as const,
+      value: raw.shield,
+      target: '友方' as const,
+      basedOn: 'hp' as const,
+    });
+  }
   if (raw.buffEffect) {
     effects.push({
       type: '增益' as const,
       value: raw.buffEffect.value,
       duration: raw.buffEffect.duration,
+      stat: STAT_KEY_MAP[raw.buffEffect.stat] || raw.buffEffect.stat,
       target: '友方' as const,
     });
   }
   if (raw.debuffEffect) {
+    const isStun = raw.debuffEffect.stat === 'stun';
     effects.push({
-      type: '减益' as const,
+      type: isStun ? '减益' : '减益',
       value: raw.debuffEffect.value,
       duration: raw.debuffEffect.duration,
+      stat: isStun ? undefined : (STAT_KEY_MAP[raw.debuffEffect.stat] || raw.debuffEffect.stat),
+      isControl: isStun,
       target: '敌方' as const,
     });
   }
@@ -408,22 +445,24 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     const skill = findSkillById(skillId);
     if (!caster || !skill) return [];
 
+    const casterStats = getEffectiveStats(caster);
     const results: SkillEffectResult[] = [];
-    const isCrit = Math.random() < caster.stats.critRate;
-    const critMul = isCrit ? caster.stats.critDmg : 1;
+    const isCrit = Math.random() < casterStats.critRate;
+    const critMul = isCrit ? casterStats.critDmg : 1;
 
     for (const tid of targets) {
       const target = battleHeroes.find((h) => h.instanceId === tid);
       if (!target) continue;
 
+      const targetStats = getEffectiveStats(target);
       const r: SkillEffectResult = { targetId: tid, isCrit };
 
       for (const eff of skill.effects) {
         if (eff.type === '伤害') {
           const baseVal = typeof eff.value === 'string' ? parseInt(eff.value) : eff.value;
-          const atkVal = eff.basedOn === 'atk' ? caster.stats.atk : caster.stats.hp * 0.1;
+          const atkVal = eff.basedOn === 'atk' ? casterStats.atk : casterStats.hp * 0.1;
           const rawDmg = Math.round((baseVal + atkVal * 0.5) * critMul);
-          const defVal = target.stats.def * 0.5;
+          const defVal = targetStats.def * 0.5;
           let dmg = Math.max(1, rawDmg - defVal);
           let absorbed = 0;
           if (target.shield && target.shield > 0) {
@@ -434,7 +473,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
           r.damage = (r.damage || 0) + dmg;
         } else if (eff.type === '治疗') {
           const baseVal = typeof eff.value === 'string' ? parseInt(eff.value) : eff.value;
-          const hpVal = eff.basedOn === 'hp' ? caster.stats.hp : caster.stats.atk * 0.5;
+          const hpVal = eff.basedOn === 'hp' ? casterStats.hp : casterStats.atk * 0.5;
           r.heal = Math.round(baseVal + hpVal * 0.3);
         } else if (eff.type === '增益') {
           const buff: Buff = {
@@ -443,7 +482,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
             type: '增益',
             duration: eff.duration || 3,
             maxDuration: eff.duration || 3,
-            effects: {},
+            effects: { [eff.stat || 'atk']: eff.value } as any,
             dispellable: true,
             sourceSkillId: skill.id,
             sourceHeroId: casterId,
@@ -453,10 +492,10 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
           const buff: Buff = {
             id: generateId(),
             name: skill.name,
-            type: '减益',
+            type: eff.isControl ? '控制' : '减益',
             duration: eff.duration || 3,
             maxDuration: eff.duration || 3,
-            effects: {},
+            effects: eff.stat ? ({ [eff.stat]: eff.value } as any) : {},
             dispellable: true,
             sourceSkillId: skill.id,
             sourceHeroId: casterId,
@@ -487,13 +526,15 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
 
     if (action === 'attack') {
       actionType = '普通攻击';
-      const isCrit = Math.random() < actor.stats.critRate;
-      const critMul = isCrit ? actor.stats.critDmg : 1;
+      const actorStats = getEffectiveStats(actor);
+      const isCrit = Math.random() < actorStats.critRate;
+      const critMul = isCrit ? actorStats.critDmg : 1;
       for (const tid of targets) {
         const target = battleHeroes.find((h) => h.instanceId === tid);
         if (!target || target.isDead) continue;
-        const rawDmg = Math.round((actor.stats.atk * 1.0) * critMul);
-        let dmg = Math.max(1, rawDmg - target.stats.def * 0.4);
+        const targetStats = getEffectiveStats(target);
+        const rawDmg = Math.round((actorStats.atk * 1.0) * critMul);
+        let dmg = Math.max(1, rawDmg - targetStats.def * 0.4);
         let absorbed = 0;
         if (target.shield && target.shield > 0) {
           absorbed = Math.min(target.shield, dmg);
