@@ -1,0 +1,228 @@
+export type SkillType = 'single_damage' | 'aoe_damage' | 'heal' | 'buff' | 'debuff';
+
+export interface Skill {
+  id: string;
+  name: string;
+  icon: string;
+  type: SkillType;
+  description: string;
+  cooldown: number;
+  manaCost: number;
+  damage?: number;
+  heal?: number;
+  buffEffect?: {
+    stat: 'attack' | 'defense' | 'speed' | 'hp';
+    value: number;
+    duration: number;
+  };
+  debuffEffect?: {
+    stat: 'attack' | 'defense' | 'speed' | 'stun';
+    value: number;
+    duration: number;
+  };
+  isPassive: boolean;
+}
+
+export const skills: Skill[] = [
+  {
+    id: 'skill_001',
+    name: '无双斩',
+    icon: '⚔️',
+    type: 'single_damage',
+    description: '对单体目标造成巨额物理伤害',
+    cooldown: 8,
+    manaCost: 50,
+    damage: 150,
+    isPassive: false,
+  },
+  {
+    id: 'skill_002',
+    name: '冰霜冲击',
+    icon: '❄️',
+    type: 'aoe_damage',
+    description: '释放冰霜冲击波，对范围内敌人造成法术伤害并减速',
+    cooldown: 12,
+    manaCost: 80,
+    damage: 100,
+    debuffEffect: { stat: 'speed', value: 30, duration: 3 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_003',
+    name: '治疗术',
+    icon: '💚',
+    type: 'heal',
+    description: '恢复自身和周围友军的生命值',
+    cooldown: 15,
+    manaCost: 100,
+    heal: 200,
+    isPassive: false,
+  },
+  {
+    id: 'skill_004',
+    name: '破军',
+    icon: '🗡️',
+    type: 'single_damage',
+    description: '对生命值低于50%的目标造成额外伤害',
+    cooldown: 10,
+    manaCost: 60,
+    damage: 200,
+    isPassive: false,
+  },
+  {
+    id: 'skill_005',
+    name: '狂暴之力',
+    icon: '💪',
+    type: 'buff',
+    description: '提升自身攻击力和移动速度',
+    cooldown: 20,
+    manaCost: 70,
+    buffEffect: { stat: 'attack', value: 50, duration: 8 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_006',
+    name: '暗影刺杀',
+    icon: '🗡️',
+    type: 'single_damage',
+    description: '瞬移至目标身后，造成高额暴击伤害',
+    cooldown: 6,
+    manaCost: 45,
+    damage: 180,
+    isPassive: false,
+  },
+  {
+    id: 'skill_007',
+    name: '烈焰风暴',
+    icon: '🔥',
+    type: 'aoe_damage',
+    description: '召唤烈焰风暴，对范围内敌人造成持续灼烧伤害',
+    cooldown: 18,
+    manaCost: 120,
+    damage: 130,
+    isPassive: false,
+  },
+  {
+    id: 'skill_008',
+    name: '铁壁防御',
+    icon: '🛡️',
+    type: 'buff',
+    description: '大幅提升自身防御力，减少受到的伤害',
+    cooldown: 25,
+    manaCost: 90,
+    buffEffect: { stat: 'defense', value: 80, duration: 10 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_009',
+    name: '万箭齐发',
+    icon: '🏹',
+    type: 'aoe_damage',
+    description: '向扇形区域射出大量箭矢，对范围内敌人造成伤害',
+    cooldown: 14,
+    manaCost: 75,
+    damage: 90,
+    isPassive: false,
+  },
+  {
+    id: 'skill_010',
+    name: '眩晕打击',
+    icon: '💫',
+    type: 'debuff',
+    description: '重击目标使其眩晕，无法行动',
+    cooldown: 16,
+    manaCost: 85,
+    damage: 50,
+    debuffEffect: { stat: 'stun', value: 100, duration: 2 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_011',
+    name: '生命源泉',
+    icon: '🌿',
+    type: 'heal',
+    description: '持续恢复目标生命值，治疗效果显著',
+    cooldown: 20,
+    manaCost: 110,
+    heal: 300,
+    isPassive: false,
+  },
+  {
+    id: 'skill_012',
+    name: '破甲一击',
+    icon: '⛏️',
+    type: 'debuff',
+    description: '击破目标护甲，降低其防御力',
+    cooldown: 9,
+    manaCost: 55,
+    damage: 80,
+    debuffEffect: { stat: 'defense', value: 40, duration: 5 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_013',
+    name: '疾速冲锋',
+    icon: '💨',
+    type: 'buff',
+    description: '大幅提升移动速度，快速突进或撤离战场',
+    cooldown: 12,
+    manaCost: 40,
+    buffEffect: { stat: 'speed', value: 60, duration: 5 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_014',
+    name: '雷霆万钧',
+    icon: '⚡',
+    type: 'aoe_damage',
+    description: '召唤雷霆之力，对大范围敌人造成毁灭性伤害',
+    cooldown: 30,
+    manaCost: 200,
+    damage: 250,
+    isPassive: false,
+  },
+  {
+    id: 'skill_015',
+    name: '嗜血本能',
+    icon: '🩸',
+    type: 'buff',
+    description: '被动提升吸血效果，攻击时恢复生命值',
+    cooldown: 0,
+    manaCost: 0,
+    buffEffect: { stat: 'hp', value: 15, duration: 999 },
+    isPassive: true,
+  },
+  {
+    id: 'skill_016',
+    name: '虚弱诅咒',
+    icon: '☠️',
+    type: 'debuff',
+    description: '诅咒目标，大幅降低其攻击力和移动速度',
+    cooldown: 18,
+    manaCost: 95,
+    debuffEffect: { stat: 'attack', value: 35, duration: 6 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_017',
+    name: '圣光庇护',
+    icon: '✨',
+    type: 'buff',
+    description: '为友军施加护盾，吸收伤害并提升防御',
+    cooldown: 22,
+    manaCost: 100,
+    buffEffect: { stat: 'defense', value: 60, duration: 8 },
+    isPassive: false,
+  },
+  {
+    id: 'skill_018',
+    name: '致命一击',
+    icon: '💥',
+    type: 'single_damage',
+    description: '精准打击敌人弱点，造成极高的单体伤害',
+    cooldown: 15,
+    manaCost: 90,
+    damage: 280,
+    isPassive: false,
+  },
+];
